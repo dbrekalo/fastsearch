@@ -170,7 +170,7 @@
 
 		generateItem: function( item ){
 
-			var $tag = $('<'+ (item.url ? 'a' : 'span') +'>').text( item.label ).addClass( this.options.itemClass );
+			var $tag = $('<'+ (item.url ? 'a' : 'span') +'>').html( item.html ? item.html : item.label ).addClass( this.options.itemClass );
 			this.itemModels.push(item);
 
 			if ( item.url ) { $tag.attr('href',item.url); }
