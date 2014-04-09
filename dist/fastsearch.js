@@ -194,7 +194,7 @@
 				this.$resultItems = this.$resultsCont.find( this.itemSelector );
 			}
 
-			if ( !this.resultsOpened ) { this.documentCancelEvents( 'on' ); this.$input.trigger('opening_results'); }
+			if ( !this.resultsOpened ) { this.documentCancelEvents( 'on' ); this.$input.trigger('openingResults'); }
 			this.resultsOpened = true;
 
 		},
@@ -263,6 +263,8 @@
 			var selectOption = this.options.onItemSelect,
 				model = (this.itemModels.length && this.itemModels[ this.$resultItems.index($item) ]) || {};
 
+			this.$input.trigger('itemSelected');
+
 			if ( selectOption === 'fillInput' ) {
 
 				this.query = model.label;
@@ -298,7 +300,7 @@
 			this.$el.removeClass( this.options.resultsOpenedClass );
 			this.resultsOpened = false;
 
-			this.$input.trigger('closing_results');
+			this.$input.trigger('closingResults');
 
 			this.documentCancelEvents( 'off' );
 
