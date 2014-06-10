@@ -122,6 +122,7 @@
 			if ( this.options.template ) { return $( this.options.template(data, this) ); }
 
 			var $allResults = $('<div>'),
+				format = this.options.responseFormat,
 				self = this;
 
 			if (data.length === 0) {
@@ -144,7 +145,7 @@
 				$.each(data, function(i,groupData){
 
 					var $group = $('<div class="'+ self.options.groupClass +'">').appendTo( $allResults );
-					if ( groupData.caption ) {	$group.append( '<h3 class="'+ self.options.groupTitleClass +'">'+ groupData.caption + '</h3>' ); }
+					if ( groupData[format.groupCaption] ) {	$group.append( '<h3 class="'+ self.options.groupTitleClass +'">'+ groupData[format.groupCaption] + '</h3>' ); }
 
 					$.each(groupData.items, function(i,item){
 
@@ -170,10 +171,13 @@
 
 		generateItem: function( item ){
 
-			var $tag = $('<'+ (item.url ? 'a' : 'span') +'>').html( item.html ? item.html : item.label ).addClass( this.options.itemClass );
+			var format = this.options.responseFormat,
+				url = item[format.url];
+
+			var $tag = $('<'+ (url ? 'a' : 'span') +'>').html( item[format.html] ? item[format.html] : item[format.label] ).addClass( this.options.itemClass );
 			this.itemModels.push(item);
 
-			if ( item.url ) { $tag.attr('href',item.url); }
+			if (url) { $tag.attr('href', url); }
 
 			if ( this.options.onItemCreate ){ this.options.onItemCreate.call(this, $tag, item); }
 
@@ -341,6 +345,13 @@
 
 		'template': null,
 
+		'responseFormat': {
+			'url': 'url',
+			'html': 'html',
+			'label': 'label',
+			'groupCaption': 'caption'
+		},
+
 		'noResultsText': 'No results found',
 		'onItemSelect': 'follow',
 
@@ -357,4 +368,4 @@
 		});
 	};
 
-})( window.jQuery, window, document );
+})(window.jQuery || window.Zepto, window, document);
