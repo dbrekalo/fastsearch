@@ -13,7 +13,7 @@
 	function Fastsearch( input, options ){
 
 		this.$input = $(input);
-		this.options = $.extend( {}, $.fastsearch.defaults, options);
+		this.options = $.extend(true, {}, $.fastsearch.defaults, options);
 		this.init();
 
 	}
