@@ -78,6 +78,14 @@
 
 			}
 
+			if (this.options.preventSubmit){
+
+				this.$input.on('keydown' + this.ens, function(e){
+					isEnter(e) && e.preventDefault();
+				});
+
+			}
+
 		},
 
 		handleTyping: function(){
@@ -293,7 +301,7 @@
 
 			}
 			else if ( selectOption === 'follow' ) { window.location.href = $item.attr('href'); }
-			else if ( typeof selectOption === 'function' ){ selectOption.call(this, $item, model); }
+			else if ( typeof selectOption === 'function' ){ selectOption.call(this, $item, model, this); }
 
 		},
 
@@ -307,6 +315,14 @@
 			this.$input.trigger('closingResults');
 
 			this.documentCancelEvents( 'off' );
+			return this;
+
+		},
+
+		clear: function(){
+
+			this.hideResults();
+			this.$input.val('').trigger('change');
 
 		},
 
@@ -331,6 +347,7 @@
 		'url': null,
 		'wrapSelector': null,
 		'responseType': 'simpleJSON',
+		'preventSubmit': false,
 
 		'resultsContClass': 'fs_results',
 		'resultsOpenedClass': 'fsr_opened',
