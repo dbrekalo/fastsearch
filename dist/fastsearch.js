@@ -3,11 +3,11 @@
 	"use strict";
 
 	var $document = (window.app && window.app.$document) || $(document),
-		instance_num = 0,
-		isEnter = function(e){ return e.keyCode && e.keyCode === 13; },
-		isEscape = function(e){ return e.keyCode && e.keyCode === 27; },
-		isDownArrow = function(e){ return e.keyCode && e.keyCode === 40; },
-		isUpArrow = function(e){ return e.keyCode && e.keyCode === 38; },
+		instanceNum = 0,
+		isEnter = function(e){ return e.keyCode === 13; },
+		isEscape = function(e){ return e.keyCode === 27; },
+		isDownArrow = function(e){ return e.keyCode === 40; },
+		isUpArrow = function(e){ return e.keyCode === 38; },
 		isTouch = 'ontouchstart' in window || 'onmsgesturechange' in window;
 
 	function Fastsearch( input, options ){
@@ -22,14 +22,14 @@
 
 		init: function(){
 
-			this.$el = this.options.wrapSelector ? this.$input.closest( this.options.wrapSelector ) : this.$input.closest('form');
+			this.$el = this.$input.closest( this.options.wrapSelector );
 
 			this.url = this.$el.data('url') || this.options.url || this.$el.attr('action');
 			this.noResultsText = this.$el.data('no-results-text') || this.options.noResultsText;
 			this.query = null;
 			this.hasResults = false;
 			this.elIsForm = this.$el.is('form');
-			this.ens = '.fastsearch' + (++instance_num); // event namespace
+			this.ens = '.fastsearch' + (++instanceNum); // event namespace
 			this.resultsOpened = false;
 			this.itemSelector = '.' + this.options.itemClass.replace(' ', '.');
 
@@ -74,14 +74,6 @@
 
 					$(this).removeClass('focused');
 
-				});
-
-			}
-
-			if (this.options.preventSubmit){
-
-				this.$input.on('keydown' + this.ens, function(e){
-					isEnter(e) && e.preventDefault();
 				});
 
 			}
@@ -267,6 +259,7 @@
 
 			var $currentItem = this.$resultItems.filter('.focused');
 			if ( $currentItem.length ) { e.preventDefault(); this.handleItemSelect( $currentItem ); }
+			else if (this.options.preventSubmit) { e.preventDefault(); }
 
 		},
 
@@ -345,7 +338,7 @@
 
 	$.fastsearch.defaults = {
 		'url': null,
-		'wrapSelector': null,
+		'wrapSelector': 'form',
 		'responseType': 'simpleJSON',
 		'preventSubmit': false,
 
