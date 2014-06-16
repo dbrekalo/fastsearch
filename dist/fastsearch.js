@@ -47,6 +47,8 @@
 
 			}).on('keydown' + this.ens, function(e){
 
+				if (isEnter(e) && self.options.preventSubmit) { e.preventDefault(); }
+
 				if ( !self.hasResults || !self.resultsOpened ) { return; }
 
 				if      ( isDownArrow(e) ) { e.preventDefault(); self.navigateDown(e); }
@@ -258,8 +260,11 @@
 		onEnter: function( e ){
 
 			var $currentItem = this.$resultItems.filter('.focused');
-			if ( $currentItem.length ) { e.preventDefault(); this.handleItemSelect( $currentItem ); }
-			else if (this.options.preventSubmit) { e.preventDefault(); }
+
+			if ( $currentItem.length ) {
+				e.preventDefault();
+				this.handleItemSelect( $currentItem );
+			}
 
 		},
 
