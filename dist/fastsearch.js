@@ -26,6 +26,8 @@
 
 			this.url = this.$el.data('url') || this.options.url || this.$el.attr('action');
 			this.noResultsText = this.$el.data('no-results-text') || this.options.noResultsText;
+			this.inputIdName = this.$el.data('input-id-name') || this.options.inputIdName;
+			this.apiInputName = this.$el.data('api-input-name') || this.options.apiInputName;
 			this.query = null;
 			this.hasResults = false;
 			this.elIsForm = this.$el.is('form');
@@ -107,6 +109,10 @@
 
 			var self = this,
 				params = this.elIsForm ? this.$el.serializeArray() : this.$el.find('input, textarea, select').serializeArray();
+
+			if (this.apiInputName) {
+				params.push({'name': this.apiInputName, 'value': this.$input.val()});
+			}
 
 			$.get( this.url, params, function(data){
 
@@ -271,14 +277,15 @@
 		handleItemSelect: function( $item ){
 
 			var selectOption = this.options.onItemSelect,
-				model = (this.itemModels.length && this.itemModels[ this.$resultItems.index($item) ]) || {};
+				model = (this.itemModels.length && this.itemModels[ this.$resultItems.index($item) ]) || {},
+				format = this.options.responseFormat;
 
 			this.$input.trigger('itemSelected');
 
 			if ( selectOption === 'fillInput' ) {
 
-				this.query = model.label;
-				this.$input.val( model.label );
+				this.query = model[format.label];
+				this.$input.val(model[format.label]);
 
 				var itemId = model.id;
 
@@ -286,8 +293,10 @@
 
 					if ( !this.$inputId ) {
 
-						this.$inputId = this.$el.find('input[name="'+ this.$input.attr('name') +'_id"]');
-						if ( !this.$inputId.length ) { this.$inputId = $('<input type="hidden" name="'+ this.$input.attr('name') + '_id" />').appendTo( this.$el ); }
+						var inputIdName = this.inputIdName || this.$input.attr('name') + '_id';
+
+						this.$inputId = this.$el.find('input[name="'+ inputIdName + '"]');
+						if ( !this.$inputId.length ) { this.$inputId = $('<input type="hidden" />').attr('name', inputIdName).appendTo( this.$el ); }
 
 					}
 
@@ -366,6 +375,9 @@
 			'label': 'label',
 			'groupCaption': 'caption'
 		},
+
+		'inputIdName': null,
+		'apiInputName': null,
 
 		'noResultsText': 'No results found',
 		'onItemSelect': 'follow',
