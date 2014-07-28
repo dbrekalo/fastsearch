@@ -1,8 +1,8 @@
-;(function ( $, window, document ){
+;(function ($, window, document){
 
 	"use strict";
 
-	var $document = (window.app && window.app.$document) || $(document),
+	var $document = $(document),
 		instanceNum = 0,
 		isEnter = function(e){ return e.keyCode === 13; },
 		isEscape = function(e){ return e.keyCode === 27; },
@@ -10,7 +10,7 @@
 		isUpArrow = function(e){ return e.keyCode === 38; },
 		isTouch = 'ontouchstart' in window || 'onmsgesturechange' in window;
 
-	function Fastsearch( input, options ){
+	function Fastsearch(input, options){
 
 		this.$input = $(input);
 		this.options = $.extend(true, {}, $.fastsearch.defaults, options);
@@ -18,7 +18,7 @@
 
 	}
 
-	var api = {
+	$.extend(Fastsearch.prototype, {
 
 		init: function(){
 
@@ -86,8 +86,8 @@
 
 		handleTyping: function(){
 
-			var val = $.trim(this.$input.val());
-			var self = this;
+			var val = $.trim(this.$input.val()),
+				self = this;
 
 			if ( val.length < this.options.minQueryLength ) { this.hideResults(); return; }
 			if ( val == this.query ) { this.showResults(); return; }
@@ -123,51 +123,28 @@
 
 		},
 
-		generateResults: function( data ){
+		generateResults: function(data){
+
+			var $allResults = $('<div>');
 
 			this.itemModels = [];
 
-			if ( this.options.template ) { return $( this.options.template(data, this) ); }
-
-			var $allResults = $('<div>'),
-				format = this.options.responseFormat,
-				self = this;
+			if (this.options.template) {
+				return $(this.options.template(data, this));
+			}
 
 			if (data.length === 0) {
 
 				var text = typeof this.noResultsText === 'function' ? this.noResultsText.call(this) : this.noResultsText;
 				$allResults.html( '<p class="'+ this.options.noResultsClass +'">'+ text +'</p>' );
 
-			}
+			} else {
 
-			if (this.options.responseType === 'simpleJSON'){
-
-				$.each(data, function(i,item){
-
-					$allResults.append( self.generateItem( item ) );
-
-				});
-
-			} else if (this.options.responseType === 'groupedJSON'){
-
-				$.each(data, function(i,groupData){
-
-					var $group = $('<div class="'+ self.options.groupClass +'">').appendTo( $allResults );
-					if ( groupData[format.groupCaption] ) {	$group.append( '<h3 class="'+ self.options.groupTitleClass +'">'+ groupData[format.groupCaption] + '</h3>' ); }
-
-					$.each(groupData.items, function(i,item){
-
-						$group.append( self.generateItem( item ) );
-
-					});
-
-					if ( self.options.onGroupCreate ){ self.options.onGroupCreate.call(self, $group, groupData); }
-
-				});
-
-			} else if ( this.options.responseType === 'html' ){
-
-				$allResults.html( data );
+				if (this.options.responseType === 'html') {
+					$allResults.html(data);
+				} else {
+					data[0][this.options.responseFormat.groupItems] ? this.generateGroupedResults(data, $allResults) : this.generateSimpleResults(data, $allResults);
+				}
 
 			}
 
@@ -177,12 +154,44 @@
 
 		},
 
+		generateSimpleResults: function(data, $cont){
+
+			var self = this;
+
+			$.each(data, function(i,item){
+				$cont.append(self.generateItem(item));
+			});
+
+		},
+
+		generateGroupedResults: function(data, $cont){
+
+			var self = this,
+				format = this.options.responseFormat;
+
+			$.each(data, function(i,groupData){
+
+				var $group = $('<div class="'+ self.options.groupClass +'">').appendTo($cont);
+				if ( groupData[format.groupCaption] ) {	$group.append( '<h3 class="'+ self.options.groupTitleClass +'">'+ groupData[format.groupCaption] + '</h3>' ); }
+
+				$.each(groupData.items, function(i,item){
+
+					$group.append( self.generateItem( item ) );
+
+				});
+
+				if ( self.options.onGroupCreate ){ self.options.onGroupCreate.call(self, $group, groupData); }
+
+			});
+
+		},
+
 		generateItem: function( item ){
 
 			var format = this.options.responseFormat,
-				url = item[format.url];
+				url = item[format.url],
+				$tag = $('<'+ (url ? 'a' : 'span') +'>').html( item[format.html] ? item[format.html] : item[format.label] ).addClass( this.options.itemClass );
 
-			var $tag = $('<'+ (url ? 'a' : 'span') +'>').html( item[format.html] ? item[format.html] : item[format.label] ).addClass( this.options.itemClass );
 			this.itemModels.push(item);
 
 			if (url) { $tag.attr('href', url); }
@@ -220,10 +229,8 @@
 
 			$document.on('click'+ this.ens +' keyup' + this.ens, function(e){
 
-				if ( isEscape(e) ) { self.hideResults(); return; }
-
-				var $target = $(e.target);
-				if( !$target.parents().is( self.$el ) ) { self.hideResults(); }
+				if (isEscape(e)) { self.hideResults(); return; }
+				if(!$(e.target).parents().is(self.$el)) { self.hideResults(); }
 
 			});
 
@@ -287,9 +294,7 @@
 				this.query = model[format.label];
 				this.$input.val(model[format.label]);
 
-				var itemId = model.id;
-
-				if (itemId) {
+				if (model.id) {
 
 					if ( !this.$inputId ) {
 
@@ -300,7 +305,7 @@
 
 					}
 
-					this.$inputId.val( itemId );
+					this.$inputId.val(model.id);
 
 				}
 
@@ -318,9 +323,7 @@
 
 			this.$el.removeClass( this.options.resultsOpenedClass );
 			this.resultsOpened = false;
-
 			this.$input.trigger('closingResults');
-
 			this.documentCancelEvents( 'off' );
 			return this;
 
@@ -335,25 +338,23 @@
 
 		destroy: function(){
 
-			this.$input.off(this.ens);
 			$document.off(this.ens);
+			this.$input.off(this.ens);
 			this.$el.off(this.ens).removeClass( this.options.resultsOpenedClass ).removeClass( this.options.loadingClass );
 			if (this.$resultsCont) { this.$resultsCont.remove(); }
 
-			delete this.$el.data()['fastsearch'];
+			delete this.$el.data().fastsearch;
 
 		}
 
-	};
-
-	$.extend(Fastsearch.prototype, api);
+	});
 
 	$.fastsearch = Fastsearch;
 
 	$.fastsearch.defaults = {
 		'url': null,
 		'wrapSelector': 'form',
-		'responseType': 'simpleJSON',
+		'responseType': 'JSON',
 		'preventSubmit': false,
 
 		'resultsContClass': 'fs_results',
@@ -373,7 +374,8 @@
 			'url': 'url',
 			'html': 'html',
 			'label': 'label',
-			'groupCaption': 'caption'
+			'groupCaption': 'caption',
+			'groupItems': 'items'
 		},
 
 		'inputIdName': null,
@@ -390,7 +392,7 @@
 	$.fn.fastsearch = function ( options ) {
 		return this.each(function () {
 			if (!$.data(this, 'fastsearch')) {
-				$.data(this, 'fastsearch', new Fastsearch( this, options ));
+				$.data(this, 'fastsearch', new Fastsearch(this, options));
 			}
 		});
 	};
