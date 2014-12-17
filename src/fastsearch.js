@@ -33,7 +33,7 @@
 			this.elIsForm = this.$el.is('form');
 			this.ens = '.fastsearch' + (++instanceNum); // event namespace
 			this.resultsOpened = false;
-			this.itemSelector = '.' + this.options.itemClass.replace(' ', '.');
+			this.itemSelector = '.' + this.options.itemClass.replace(/\s/g, '.');
 
 			this.events();
 
