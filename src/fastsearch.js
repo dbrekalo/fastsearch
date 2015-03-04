@@ -119,7 +119,7 @@
 
 				self.options.responseType === 'JSON' && typeof data === 'string' && (data = $.parseJSON(data));
 
-				self.showResults( self.generateResults(data) );
+				self.showResults(self.generateResults(data), data);
 				self.hasResults = data.length !== 0;
 
 			});
@@ -150,8 +150,6 @@
 				}
 
 			}
-
-			this.options.onResultsCreate && this.options.onResultsCreate.call(this, $allResults, data, this);
 
 			return $allResults.html();
 
@@ -206,7 +204,7 @@
 
 		},
 
-		showResults: function( $content ){
+		showResults: function($content, data){
 
 			if ( !$content && this.resultsOpened ) { return; }
 
@@ -217,6 +215,7 @@
 			if ( $content ) {
 				this.$resultsCont.html( $content );
 				this.$resultItems = this.$resultsCont.find( this.itemSelector );
+				this.options.onResultsCreate && this.options.onResultsCreate.call(this, this.$resultsCont, data, this);
 			}
 
 			if ( !this.resultsOpened ) { this.documentCancelEvents( 'on' ); this.$input.trigger('openingResults'); }
