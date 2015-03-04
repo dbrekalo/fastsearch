@@ -66,17 +66,18 @@
 
 			});
 
-			if (!isTouch){
+			if (!isTouch) {
+
+				this.$el.on('mouseleave' + this.ens, this.itemSelector, function(){
+
+					$(this).removeClass('focused');
+
+				});
 
 				this.$el.on('mouseenter' + this.ens, this.itemSelector, function(){
 
-					self.$input.focus();
-					self.$resultsCont.find('.focused').removeClass('focused');
+					self.$resultItems.removeClass('focused');
 					$(this).addClass('focused');
-
-				}).on('mouseleave' + this.ens, this.itemSelector, function(){
-
-					$(this).removeClass('focused');
 
 				});
 
@@ -116,7 +117,9 @@
 
 			$.get( this.url, params, function(data){
 
-				self.showResults( self.generateResults( data ) );
+				self.options.responseType === 'JSON' && typeof data === 'string' && (data = $.parseJSON(data));
+
+				self.showResults( self.generateResults(data) );
 				self.hasResults = data.length !== 0;
 
 			});
@@ -172,6 +175,7 @@
 			$.each(data, function(i,groupData){
 
 				var $group = $('<div class="'+ self.options.groupClass +'">').appendTo($cont);
+
 				if ( groupData[format.groupCaption] ) {	$group.append( '<h3 class="'+ self.options.groupTitleClass +'">'+ groupData[format.groupCaption] + '</h3>' ); }
 
 				$.each(groupData.items, function(i,item){
@@ -194,7 +198,7 @@
 
 			this.itemModels.push(item);
 
-			if (url) { $tag.attr('href', url); }
+			url && $tag.attr('href', url);
 
 			this.options.onItemCreate && this.options.onItemCreate.call(this, $tag, item, this);
 
@@ -224,13 +228,24 @@
 
 			var self = this;
 
-			if ( setup === 'off' && this.closeEventsSetuped ) { $document.off(this.ens); this.closeEventsSetuped = false; return; }
+			if ( setup === 'off' && this.closeEventsSetuped ) {
+
+				$document.off(this.ens);
+				this.closeEventsSetuped = false;
+				return;
+
+			}
+
 			if ( this.closeEventsSetuped ) { return; }
 
 			$document.on('click'+ this.ens +' keyup' + this.ens, function(e){
 
-				if (isEscape(e)) { self.hideResults(); return; }
-				if(!$(e.target).parents().is(self.$el)) { self.hideResults(); }
+				if (isEscape(e) || (!$(e.target).is(self.$el) && !$.contains(self.$el.get(0), e.target))) {
+
+					self.hideResults();
+					return;
+
+				}
 
 			});
 
@@ -242,15 +257,21 @@
 
 			var $currentItem = this.$resultItems.filter('.focused');
 
-			// No item selected
 			if ( $currentItem.length === 0 ) { this.$resultItems.eq(0).addClass('focused'); return; }
 
-			// Select next
-			var $nextItem = this.$resultItems.eq( this.$resultItems.index( $currentItem ) + 1 );
-			if ( $nextItem.length ) { $currentItem.removeClass('focused'); $nextItem.addClass('focused'); }
+			$currentItem.removeClass('focused');
 
-			// Last to first
-			else { $currentItem.removeClass('focused'); this.$resultItems.eq(0).addClass('focused'); }
+			var nextItem = this.$resultItems.index( $currentItem ) + 1;
+
+			if (nextItem <= this.$resultItems.length - 1) {
+
+				this.$resultItems.eq(nextItem).addClass('focused');
+
+			} else {
+
+				this.$resultItems.eq(0).addClass('focused');
+
+			}
 
 		},
 
@@ -258,15 +279,21 @@
 
 			var $currentItem = this.$resultItems.filter('.focused');
 
-			// No item selected
 			if ( $currentItem.length === 0 ) { this.$resultItems.last().addClass('focused'); return; }
 
-			// Select prev
-			var $prevItem = this.$resultItems.eq( this.$resultItems.index($currentItem) - 1 );
-			if ( $prevItem.length ) { $currentItem.removeClass('focused'); $prevItem.addClass('focused'); }
+			$currentItem.removeClass('focused');
 
-			// First to last
-			else { $currentItem.removeClass('focused'); this.$resultItems.last().addClass('focused'); }
+			var prevItem = this.$resultItems.index( $currentItem ) - 1;
+
+			if (prevItem >= 0) {
+
+				this.$resultItems.eq(prevItem).addClass('focused');
+
+			} else {
+
+				this.$resultItems.last().addClass('focused');
+
+			}
 
 		},
 
