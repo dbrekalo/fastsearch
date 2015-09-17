@@ -115,9 +115,11 @@
 				params.push({'name': this.apiInputName, 'value': this.$input.val()});
 			}
 
-			$.get( this.url, params, function(data){
+			$.get(this.url, params, function(data){
 
-				self.options.responseType === 'JSON' && typeof data === 'string' && (data = $.parseJSON(data));
+				if (self.options.parseResponse) {
+					data = self.options.parseResponse(data, this);
+				}
 
 				self.showResults(self.generateResults(data), data);
 				self.hasResults = data.length !== 0;
@@ -410,6 +412,7 @@
 		'noResultsText': 'No results found',
 		'onItemSelect': 'follow',
 
+		'parseResponse': null,
 		'onResultsCreate': null,
 		'onGroupCreate': null,
 		'onItemCreate': null

@@ -49,6 +49,7 @@ $.fastsearch.defaults = {
 		'noResultsText': 'No results found',
 		'onItemSelect': 'follow', // by default plugin follows selected link - other options available are "fillInput" and custom callback - function($item, model, fastsearchApi)
 
+		'parseResponse': null, // parse server response with your handler and return processed data - function(response, fastsearchApi)
 		'onResultsCreate': null, // adjust results element - function($allResults, data, fastsearchApi)
 		'onGroupCreate': null, // adjust group element when created - function($group, groupModel, fastsearchApi)
 		'onItemCreate': null // adjust item element when created - function($item, model, fastsearchApi)
