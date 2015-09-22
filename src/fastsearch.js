@@ -1,431 +1,490 @@
-;(function ($, window, document){
+;(function($, window, document) {
 
-	"use strict";
+    var $document = $(document),
+        instanceNum = 0,
+        keyMap = {
+            13: 'enter',
+            27: 'escape',
+            40: 'downArrow',
+            38: 'upArrow'
+        };
 
-	var $document = $(document),
-		instanceNum = 0,
-		isEnter = function(e){ return e.keyCode === 13; },
-		isEscape = function(e){ return e.keyCode === 27; },
-		isDownArrow = function(e){ return e.keyCode === 40; },
-		isUpArrow = function(e){ return e.keyCode === 38; },
-		isTouch = 'ontouchstart' in window || 'onmsgesturechange' in window;
+    function Fastsearch(input, options) {
 
-	function Fastsearch(input, options){
+        this.$input = $(input);
+        this.options = $.extend(true, {}, Fastsearch.defaults, options);
+        this.init();
 
-		this.$input = $(input);
-		this.options = $.extend(true, {}, $.fastsearch.defaults, options);
-		this.init();
+    }
 
-	}
+    $.extend(Fastsearch.prototype, {
 
-	$.extend(Fastsearch.prototype, {
+        init: function() {
 
-		init: function(){
+            this.$el = this.$input.closest(this.options.wrapSelector);
 
-			this.$el = this.$input.closest( this.options.wrapSelector );
+            var data = this.$el.data(),
+                options = this.options;
 
-			this.url = this.$el.data('url') || this.options.url || this.$el.attr('action');
-			this.onItemSelect = this.$el.data('on-item-select') || this.options.onItemSelect;
-			this.noResultsText = this.$el.data('no-results-text') || this.options.noResultsText;
-			this.inputIdName = this.$el.data('input-id-name') || this.options.inputIdName;
-			this.apiInputName = this.$el.data('api-input-name') || this.options.apiInputName;
+            $.extend(options, {
+                url: data.url || options.url || this.$el.attr('action'),
+                onItemSelect: data.onItemSelect || options.onItemSelect,
+                noResultsText: data.noResultsText || options.noResultsText,
+                inputIdName: data.inputIdName || options.inputIdName,
+                apiInputName: data.apiInputName || options.apiInputName
+            });
 
-			this.query = null;
-			this.hasResults = false;
-			this.elIsForm = this.$el.is('form');
-			this.ens = '.fastsearch' + (++instanceNum); // event namespace
-			this.resultsOpened = false;
-			this.itemSelector = '.' + this.options.itemClass.replace(/\s/g, '.');
+            this.ens = '.fastsearch' + (++instanceNum);
+            this.itemSelector = '.' + options.itemClass.replace(/\s/g, '.');
+            this.focusedItemSelector = '.' + options.focusedItemClass.replace(/\s/g, '.');
 
-			this.events();
+            this.events();
 
-		},
+        },
 
-		events: function(){
+        events: function() {
 
-			var self = this;
+            var self = this,
+                options = this.options;
 
-			this.$input.on('keyup'+ this.ens +' focus'+ this.ens +' click' + this.ens, function(e){
+            this.$input.on('keyup focus click '.replace(/\s/g, this.ens + ' '), function(e) {
 
-				if ( !isEnter(e) ) { self.handleTyping(); }
+                keyMap[e.keyCode] !== 'enter' && self.handleTyping();
 
-			}).on('keydown' + this.ens, function(e){
+            }).on('keydown' + this.ens, function(e) {
 
-				if (isEnter(e) && self.options.preventSubmit) { e.preventDefault(); }
+                keyMap[e.keyCode] === 'enter' && options.preventSubmit && e.preventDefault();
 
-				if ( !self.hasResults || !self.resultsOpened ) { return; }
+                if (self.hasResults && self.resultsOpened) {
 
-				if      ( isDownArrow(e) ) { e.preventDefault(); self.navigateDown(e); }
-				else if ( isUpArrow(e) )   { e.preventDefault(); self.navigateUp(e); }
-				else if ( isEnter(e) )     { self.onEnter(e); }
+                    switch (keyMap[e.keyCode]) {
+                        case 'downArrow': e.preventDefault(); self.navigateItem('down'); break;
+                        case 'upArrow': e.preventDefault(); self.navigateItem('up'); break;
+                        case 'enter': self.onEnter(e); break;
+                    }
 
-			});
+                }
 
-			this.$el.on('click' + this.ens, this.itemSelector, function(e){
+            });
 
-				e.preventDefault();
-				self.handleItemSelect( $(this) );
+            this.$el.on('click' + this.ens, this.itemSelector, function(e) {
 
-			});
+                e.preventDefault();
+                self.handleItemSelect($(this));
 
-			if (!isTouch) {
+            });
 
-				this.$el.on('mouseleave' + this.ens, this.itemSelector, function(){
+            !options.isTouch && this.$el.on('mouseleave' + this.ens, this.itemSelector, function(e) {
 
-					$(this).removeClass('focused');
+                $(this).removeClass(options.focusedItemClass);
 
-				});
+            }).on('mouseenter' + this.ens, this.itemSelector, function(e) {
 
-				this.$el.on('mouseenter' + this.ens, this.itemSelector, function(){
+                self.$resultItems.removeClass(options.focusedItemClass);
+                $(this).addClass(options.focusedItemClass);
 
-					self.$resultItems.removeClass('focused');
-					$(this).addClass('focused');
+            });
 
-				});
+        },
 
-			}
+        handleTyping: function() {
 
-		},
+            var inputValue = $.trim(this.$input.val()),
+                self = this;
 
-		handleTyping: function(){
+            if (inputValue.length < this.options.minQueryLength) {
 
-			var val = $.trim(this.$input.val()),
-				self = this;
+                this.hideResults();
+                return;
 
-			if ( val.length < this.options.minQueryLength ) { this.hideResults(); return; }
-			if ( val == this.query ) { this.showResults(); return; }
+            }
 
-			clearTimeout( this.keyupTimeout );
+            if (inputValue === this.query) {
 
-			this.$el.addClass( this.options.loadingClass );
+                this.showResults();
+                return;
 
-			this.keyupTimeout = setTimeout(function(){
+            }
 
-				self.query = val;
-				self.getResults();
+            this.$el.addClass(this.options.loadingClass);
 
-			}, this.options.typeTimeout);
+            clearTimeout(this.keyupTimeout);
 
-		},
+            this.keyupTimeout = setTimeout(function() {
 
-		getResults: function(){
+                self.query = inputValue;
+                self.getResults();
 
-			var self = this,
-				params = this.elIsForm ? this.$el.serializeArray() : this.$el.find('input, textarea, select').serializeArray();
+            }, this.options.typeTimeout);
 
-			if (this.apiInputName) {
-				params.push({'name': this.apiInputName, 'value': this.$input.val()});
-			}
+        },
 
-			$.get(this.url, params, function(data){
+        getResults: function() {
 
-				if (self.options.parseResponse) {
-					data = self.options.parseResponse(data, this);
-				}
+            var self = this,
+                formValues = this.$el.find('input, textarea, select').serializeArray();
 
-				self.showResults(self.generateResults(data), data);
-				self.hasResults = data.length !== 0;
+            if (this.options.apiInputName) {
+                formValues.push({'name': this.apiInputName, 'value': this.$input.val()});
+            }
 
-			});
+            $.get(this.options.url, formValues, function(data) {
 
-		},
+                if (self.options.parseResponse) {
+                    data = self.options.parseResponse.call(this, data, this);
+                }
 
-		generateResults: function(data){
+                self.showResults(self.generateResults(data), data);
+                self.hasResults = data.length !== 0;
 
-			var $allResults = $('<div>');
+            });
 
-			this.itemModels = [];
+        },
 
-			if (this.options.template) {
-				return $(this.options.template(data, this));
-			}
+        generateResults: function(data) {
 
-			if (data.length === 0) {
+            var $allResults = $('<div>'),
+                options = this.options;
 
-				var text = typeof this.noResultsText === 'function' ? this.noResultsText.call(this) : this.noResultsText;
-				$allResults.html( '<p class="'+ this.options.noResultsClass +'">'+ text +'</p>' );
+            this.itemModels = [];
 
-			} else {
+            if (options.template) {
+                return $(options.template(data, this));
+            }
 
-				if (this.options.responseType === 'html') {
-					$allResults.html(data);
-				} else {
-					data[0][this.options.responseFormat.groupItems] ? this.generateGroupedResults(data, $allResults) : this.generateSimpleResults(data, $allResults);
-				}
+            if (data.length === 0) {
 
-			}
+                $allResults.html(
+                    '<p class="' + options.noResultsClass + '">' +
+                        (typeof options.noResultsText === 'function' ? options.noResultsText.call(this) : options.noResultsText) +
+                    '</p>'
+                );
 
-			return $allResults.html();
+            } else {
 
-		},
+                if (this.options.responseType === 'html') {
 
-		generateSimpleResults: function(data, $cont){
+                    $allResults.html(data);
 
-			var self = this;
+                } else {
 
-			$.each(data, function(i,item){
-				$cont.append(self.generateItem(item));
-			});
+                    this['generate' + (data[0][options.responseFormat.groupItems] ? 'GroupedResults' : 'SimpleResults')](data, $allResults);
 
-		},
+                }
 
-		generateGroupedResults: function(data, $cont){
+            }
 
-			var self = this,
-				format = this.options.responseFormat;
+            return $allResults.html();
 
-			$.each(data, function(i,groupData){
+        },
 
-				var $group = $('<div class="'+ self.options.groupClass +'">').appendTo($cont);
+        generateSimpleResults: function(data, $cont) {
 
-				if ( groupData[format.groupCaption] ) {	$group.append( '<h3 class="'+ self.options.groupTitleClass +'">'+ groupData[format.groupCaption] + '</h3>' ); }
+            var self = this;
 
-				$.each(groupData.items, function(i,item){
+            $.each(data, function(i, item) {
+                $cont.append(self.generateItem(item));
+            });
 
-					$group.append( self.generateItem( item ) );
+        },
 
-				});
+        generateGroupedResults: function(data, $cont) {
 
-				self.options.onGroupCreate && self.options.onGroupCreate.call(self, $group, groupData, this);
+            var self = this,
+                options = this.options,
+                format = options.responseFormat;
 
-			});
+            $.each(data, function(i, groupData) {
 
-		},
+                var $group = $('<div class="' + options.groupClass + '">').appendTo($cont);
 
-		generateItem: function( item ){
+                if (groupData[format.groupCaption]) {
 
-			var format = this.options.responseFormat,
-				url = item[format.url],
-				$tag = $('<'+ (url ? 'a' : 'span') +'>').html( item[format.html] ? item[format.html] : item[format.label] ).addClass( this.options.itemClass );
+                    $group.append(
+                        '<h3 class="' + options.groupTitleClass + '">' + groupData[format.groupCaption] + '</h3>'
+                    );
 
-			this.itemModels.push(item);
+                }
 
-			url && $tag.attr('href', url);
+                $.each(groupData.items, function(i, item) {
 
-			this.options.onItemCreate && this.options.onItemCreate.call(this, $tag, item, this);
+                    $group.append(self.generateItem(item));
 
-			return $tag;
+                });
 
-		},
+                options.onGroupCreate && options.onGroupCreate.call(self, $group, groupData, this);
 
-		showResults: function($content, data){
+            });
 
-			if ( !$content && this.resultsOpened ) { return; }
+        },
 
-			this.$el.removeClass( this.options.loadingClass ).addClass( this.options.resultsOpenedClass );
+        generateItem: function(item) {
 
-			this.$resultsCont = this.$resultsCont || $('<div class="'+ this.options.resultsContClass +'">').appendTo( this.$el );
+            var options = this.options,
+                format = options.responseFormat,
+                url = item[format.url],
+                html = item[format.html] || item[format.label],
+                $tag = $('<' + (url ? 'a' : 'span') + '>').html(html).addClass(options.itemClass);
 
-			if ( $content ) {
-				this.$resultsCont.html( $content );
-				this.$resultItems = this.$resultsCont.find( this.itemSelector );
-				this.options.onResultsCreate && this.options.onResultsCreate.call(this, this.$resultsCont, data, this);
-			}
+            this.itemModels.push(item);
 
-			if ( !this.resultsOpened ) { this.documentCancelEvents( 'on' ); this.$input.trigger('openingResults'); }
-			this.resultsOpened = true;
+            url && $tag.attr('href', url);
 
-		},
+            options.onItemCreate && options.onItemCreate.call(this, $tag, item, this);
 
-		documentCancelEvents: function( setup ){
+            return $tag;
 
-			var self = this;
+        },
 
-			if ( setup === 'off' && this.closeEventsSetuped ) {
+        showResults: function($content, data) {
 
-				$document.off(this.ens);
-				this.closeEventsSetuped = false;
-				return;
+            if (!$content && this.resultsOpened) {
+                return;
+            }
 
-			}
+            this.$el.removeClass(this.options.loadingClass).addClass(this.options.resultsOpenedClass);
 
-			if ( this.closeEventsSetuped ) { return; }
+            this.$resultsCont = this.$resultsCont || $('<div>').addClass(this.options.resultsContClass).appendTo(this.$el);
 
-			$document.on('click'+ this.ens +' keyup' + this.ens, function(e){
+            if ($content) {
 
-				if (isEscape(e) || (!$(e.target).is(self.$el) && !$.contains(self.$el.get(0), e.target))) {
+                this.$resultsCont.html($content);
+                this.$resultItems = this.$resultsCont.find(this.itemSelector);
+                this.options.onResultsCreate && this.options.onResultsCreate.call(this, this.$resultsCont, data, this);
 
-					self.hideResults();
-					return;
+            }
 
-				}
+            if (!this.resultsOpened) {
 
-			});
+                this.documentCancelEvents('on');
+                this.$input.trigger('openingResults');
 
-			this.closeEventsSetuped = true;
+            }
 
-		},
+            this.resultsOpened = true;
 
-		navigateDown: function(){
+        },
 
-			var $currentItem = this.$resultItems.filter('.focused');
+        documentCancelEvents: function(setup) {
 
-			if ( $currentItem.length === 0 ) { this.$resultItems.eq(0).addClass('focused'); return; }
+            var self = this;
 
-			$currentItem.removeClass('focused');
+            if (setup === 'off' && this.closeEventsSetuped) {
 
-			var nextItem = this.$resultItems.index( $currentItem ) + 1;
+                $document.off(this.ens);
+                this.closeEventsSetuped = false;
+                return;
 
-			if (nextItem <= this.$resultItems.length - 1) {
+            } else if (setup === 'on' && !this.closeEventsSetuped) {
 
-				this.$resultItems.eq(nextItem).addClass('focused');
+                $document.on('click' + this.ens + ' keyup' + this.ens, function(e) {
 
-			} else {
+                    if (keyMap[e.keyCode] === 'escape' || (!$(e.target).is(self.$el) && !$.contains(self.$el.get(0), e.target))) {
 
-				this.$resultItems.eq(0).addClass('focused');
+                        self.hideResults();
+                        return;
 
-			}
+                    }
 
-		},
+                });
 
-		navigateUp: function(){
+                this.closeEventsSetuped = true;
 
-			var $currentItem = this.$resultItems.filter('.focused');
+            }
 
-			if ( $currentItem.length === 0 ) { this.$resultItems.last().addClass('focused'); return; }
+        },
 
-			$currentItem.removeClass('focused');
+        navigateItem: function(direction) {
 
-			var prevItem = this.$resultItems.index( $currentItem ) - 1;
+            var $currentItem = this.$resultItems.filter(this.focusedItemSelector),
+                maxPosition = this.$resultItems.length - 1;
 
-			if (prevItem >= 0) {
+            if ($currentItem.length === 0) {
 
-				this.$resultItems.eq(prevItem).addClass('focused');
+                this.$resultItems.eq(direction === 'up' ? maxPosition : 0).addClass(this.options.focusedItemClass);
+                return;
 
-			} else {
+            }
 
-				this.$resultItems.last().addClass('focused');
+            var currentPosition = this.$resultItems.index($currentItem),
+                nextPosition = direction === 'up' ? currentPosition - 1 : currentPosition + 1;
 
-			}
+            nextPosition > maxPosition && (nextPosition = 0);
+            nextPosition < 0 && (nextPosition = maxPosition);
 
-		},
+            $currentItem.removeClass(this.options.focusedItemClass);
 
-		onEnter: function( e ){
+            this.$resultItems.eq(nextPosition).addClass(this.options.focusedItemClass);
 
-			var $currentItem = this.$resultItems.filter('.focused');
+        },
 
-			if ( $currentItem.length ) {
-				e.preventDefault();
-				this.handleItemSelect( $currentItem );
-			}
+        navigateDown: function() {
 
-		},
+            this.navigateItem('down');
 
-		handleItemSelect: function( $item ){
+        },
 
-			var selectOption = this.onItemSelect,
-				model = (this.itemModels.length && this.itemModels[ this.$resultItems.index($item) ]) || {},
-				format = this.options.responseFormat;
+        navigateUp: function() {
 
-			this.$input.trigger('itemSelected');
+            this.navigateItem('up');
 
-			if ( selectOption === 'fillInput' ) {
+        },
 
-				this.query = model[format.label];
-				this.$input.val(model[format.label]);
+        onEnter: function(e) {
 
-				if (model.id) {
+            var $currentItem = this.$resultItems.filter(this.focusedItemSelector);
 
-					if ( !this.$inputId ) {
+            if ($currentItem.length) {
+                e.preventDefault();
+                this.handleItemSelect($currentItem);
+            }
 
-						var inputIdName = this.inputIdName || this.$input.attr('name') + '_id';
+        },
 
-						this.$inputId = this.$el.find('input[name="'+ inputIdName + '"]');
-						if ( !this.$inputId.length ) { this.$inputId = $('<input type="hidden" />').attr('name', inputIdName).appendTo( this.$el ); }
+        handleItemSelect: function($item) {
 
-					}
+            var selectOption = this.options.onItemSelect,
+                model = this.itemModels.length ? this.itemModels[this.$resultItems.index($item)] : {},
+                format = this.options.responseFormat;
 
-					this.$inputId.val(model.id);
+            this.$input.trigger('itemSelected');
 
-				}
+            if (selectOption === 'fillInput') {
 
-				this.hideResults();
+                this.query = model[format.label];
+                this.$input.val(model[format.label]).trigger('change');
 
-			}
-			else if ( selectOption === 'follow' ) { window.location.href = $item.attr('href'); }
-			else if ( typeof selectOption === 'function' ){ selectOption.call(this, $item, model, this); }
+                if (this.options.fillInputId && model.id) {
 
-		},
+                    if (!this.$inputId) {
 
-		hideResults: function(){
+                        var inputIdName = this.options.inputIdName || this.$input.attr('name') + '_id';
 
-			if ( !this.resultsOpened) { return; }
+                        this.$inputId = this.$el.find('input[name="' + inputIdName + '"]');
 
-			this.$el.removeClass( this.options.resultsOpenedClass );
-			this.resultsOpened = false;
-			this.$input.trigger('closingResults');
-			this.documentCancelEvents( 'off' );
-			return this;
+                        if (!this.$inputId.length) {
+                            this.$inputId = $('<input type="hidden" name="' + inputIdName + '" />').appendTo(this.$el);
+                        }
 
-		},
+                    }
 
-		clear: function(){
+                    this.$inputId.val(model.id).trigger('change');
 
-			this.hideResults();
-			this.$input.val('').trigger('change');
+                }
 
-		},
+                this.hideResults();
 
-		destroy: function(){
+            } else if (selectOption === 'follow') {
 
-			$document.off(this.ens);
-			this.$input.off(this.ens);
-			this.$el.off(this.ens).removeClass( this.options.resultsOpenedClass ).removeClass( this.options.loadingClass );
-			if (this.$resultsCont) { this.$resultsCont.remove(); }
+                window.location.href = $item.attr('href');
 
-			delete this.$el.data().fastsearch;
+            } else if (typeof selectOption === 'function') {
 
-		}
+                selectOption.call(this, $item, model, this);
 
-	});
+            }
 
-	$.fastsearch = Fastsearch;
+        },
 
-	$.fastsearch.defaults = {
-		'wrapSelector': 'form', // fastsearch container defaults to closest form. Provide selector for something other
-		'url': null, // plugin will get data from data-url propery, url option or container action attribute
-		'responseType': 'JSON', // default expected server response type - can be set to html if that is what server returns
-		'preventSubmit': false, // prevent submit of form with enter keypress
+        hideResults: function() {
 
-		'resultsContClass': 'fs_results', // html classes
-		'resultsOpenedClass': 'fsr_opened',
-		'groupClass': 'fs_group',
-		'itemClass': 'fs_result_item',
-		'groupTitleClass': 'fs_group_title',
-		'loadingClass': 'loading',
-		'noResultsClass': 'fs_no_results',
+            if (this.resultsOpened) {
 
-		'typeTimeout': 140, // try not to hammer server with request for each keystroke if possible
-		'minQueryLength': 2, // minimal number of characters needed for plugin to send request to server
+                this.resultsOpened = false;
+                this.$el.removeClass(this.options.resultsOpenedClass);
+                this.$input.trigger('closingResults');
+                this.documentCancelEvents('off');
 
-		'template': null, // your template function
+            }
 
-		'responseFormat': { // Adjust where plugin looks for data in your JSON server response
-			'url': 'url',
-			'html': 'html',
-			'label': 'label',
-			'groupCaption': 'caption',
-			'groupItems': 'items'
-		},
+            return this;
 
-		'inputIdName': null, // on item select plugin will try to write selected id from model to this input
-		'apiInputName': null, // by default plugin will post input name as query parameter - you can provide custom one here
+        },
 
-		'noResultsText': 'No results found',
-		'onItemSelect': 'follow', // by default plugin follows selected link - other options available are "fillInput" and custom callback - function($item, model, fastsearchApi)
+        clear: function() {
 
-		'parseResponse': null, // parse server response with your handler and return processed data - function(response, fastsearchApi)
-		'onResultsCreate': null, // adjust results element - function($allResults, data, fastsearchApi)
-		'onGroupCreate': null, // adjust group element when created - function($group, groupModel, fastsearchApi)
-		'onItemCreate': null // adjust item element when created - function($item, model, fastsearchApi)
-	};
+            this.hideResults();
+            this.$input.val('').trigger('change');
 
-	$.fn.fastsearch = function ( options ) {
-		return this.each(function () {
-			if (!$.data(this, 'fastsearch')) {
-				$.data(this, 'fastsearch', new Fastsearch(this, options));
-			}
-		});
-	};
+            return this;
+
+        },
+
+        destroy: function() {
+
+            $document.off(this.ens);
+
+            this.$input.off(this.ens);
+
+            this.$el.off(this.ens)
+                .removeClass(this.options.resultsOpenedClass)
+                .removeClass(this.options.loadingClass);
+
+            if (this.$resultsCont) {
+
+                this.$resultsCont.remove();
+                delete this.$resultsCont;
+
+            }
+
+            delete this.$el.data().fastsearch;
+
+        }
+
+    });
+
+    Fastsearch.defaults = {
+        wrapSelector: 'form', // fastsearch container defaults to closest form. Provide selector for something other
+        url: null, // plugin will get data from data-url propery, url option or container action attribute
+        responseType: 'JSON', // default expected server response type - can be set to html if that is what server returns
+        preventSubmit: false, // prevent submit of form with enter keypress
+
+        resultsContClass: 'fs_results', // html classes
+        resultsOpenedClass: 'fsr_opened',
+        groupClass: 'fs_group',
+        itemClass: 'fs_result_item',
+        groupTitleClass: 'fs_group_title',
+        loadingClass: 'loading',
+        noResultsClass: 'fs_no_results',
+        focusedItemClass: 'focused',
+
+        typeTimeout: 140, // try not to hammer server with request for each keystroke if possible
+        minQueryLength: 2, // minimal number of characters needed for plugin to send request to server
+
+        template: null, // provide your template function if you need one - function(data, fastsearchApi)
+
+        isTouch: 'ontouchstart' in window || 'onmsgesturechange' in window, // detect if client is touch enabled so plugin can decide if mouse specific events should be set.
+
+        responseFormat: { // Adjust where plugin looks for data in your JSON server response
+            url: 'url',
+            html: 'html',
+            label: 'label',
+            groupCaption: 'caption',
+            groupItems: 'items'
+        },
+
+        fillInputId: true, // on item select plugin will try to write selected id from item data model to input
+        inputIdName: null, // on item select plugin will try to write selected id from item data model to input with this name
+
+        apiInputName: null, // by default plugin will post input name as query parameter - you can provide custom one here
+
+        noResultsText: 'No results found',
+        onItemSelect: 'follow', // by default plugin follows selected link - other options available are "fillInput" and custom callback - function($item, model, fastsearchApi)
+
+        parseResponse: null, // parse server response with your handler and return processed data - function(response, fastsearchApi)
+        onResultsCreate: null, // adjust results element - function($allResults, data, fastsearchApi)
+        onGroupCreate: null, // adjust group element when created - function($group, groupModel, fastsearchApi)
+        onItemCreate: null // adjust item element when created - function($item, model, fastsearchApi)
+    };
+
+    $.fastsearch = Fastsearch;
+
+    $.fn.fastsearch = function(options) {
+        return this.each(function() {
+            if (!$.data(this, 'fastsearch')) {
+                $.data(this, 'fastsearch', new Fastsearch(this, options));
+            }
+        });
+    };
 
 })(window.jQuery || window.Zepto, window, document);

@@ -36,11 +36,24 @@ module.exports = function(grunt) {
 			all: ['src','Gruntfile.js']
 		},
 
+		jscs: {
+		    options: {
+		        config: '.jscsrc'
+		    },
+		    scripts: {
+		        files: {
+		            src: [
+		                'src/**/*.js'
+		            ]
+		        }
+		    }
+		},
+
 		watch: {
 			jsFiles: {
 				expand: true,
 				files: ['src/**/*.js'],
-				tasks: ['jshint', 'copy','uglify'],
+				tasks: ['jshint', 'jscs', 'copy','uglify'],
 				options: {
 					spawn: false
 				}
@@ -52,6 +65,6 @@ module.exports = function(grunt) {
 	require('load-grunt-tasks')(grunt);
 
 	grunt.registerTask('default', ['watch']);
-	grunt.registerTask('build', ['jshint', 'uglify', 'copy']);
+	grunt.registerTask('build', ['jshint', 'jscs', 'uglify', 'copy']);
 
 };
