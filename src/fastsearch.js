@@ -122,16 +122,17 @@
         getResults: function() {
 
             var self = this,
+                options = this.options,
                 formValues = this.$el.find('input, textarea, select').serializeArray();
 
-            if (this.options.apiInputName) {
-                formValues.push({'name': this.apiInputName, 'value': this.$input.val()});
+            if (options.apiInputName) {
+                formValues.push({'name': options.apiInputName, 'value': this.$input.val()});
             }
 
-            $.get(this.options.url, formValues, function(data) {
+            $.get(options.url, formValues, function(data) {
 
-                if (self.options.parseResponse) {
-                    data = self.options.parseResponse.call(this, data, this);
+                if (options.parseResponse) {
+                    data = options.parseResponse.call(this, data, this);
                 }
 
                 self.showResults(self.generateResults(data), data);
