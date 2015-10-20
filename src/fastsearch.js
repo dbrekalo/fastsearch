@@ -9,36 +9,42 @@
             38: 'upArrow'
         };
 
-    function Fastsearch(input, options) {
+    function Fastsearch(inputElement, options) {
 
-        this.$input = $(input);
-        this.options = $.extend(true, {}, Fastsearch.defaults, options);
-        this.init();
+        this.init.apply(this, arguments);
 
     }
 
     $.extend(Fastsearch.prototype, {
 
-        init: function() {
+        init: function(inputElement, options) {
 
-            this.$el = this.$input.closest(this.options.wrapSelector);
+            options = this.options = $.extend(true, {}, Fastsearch.defaults, options);
 
-            var data = this.$el.data(),
-                options = this.options;
+            this.$input = $(inputElement);
+            this.$el = options.wrapSelector instanceof $ ? options.wrapSelector : this.$input.closest(options.wrapSelector);
 
-            $.extend(options, {
-                url: data.url || options.url || this.$el.attr('action'),
-                onItemSelect: data.onItemSelect || options.onItemSelect,
-                noResultsText: data.noResultsText || options.noResultsText,
-                inputIdName: data.inputIdName || options.inputIdName,
-                apiInputName: data.apiInputName || options.apiInputName
-            });
+            Fastsearch.pickTo(options, this.$el.data(), [
+                'url', 'onItemSelect', 'noResultsText', 'inputIdName', 'apiInputName'
+            ]);
+
+            options.url = options.url || this.$el.attr('action');
 
             this.ens = '.fastsearch' + (++instanceNum);
-            this.itemSelector = '.' + options.itemClass.replace(/\s/g, '.');
-            this.focusedItemSelector = '.' + options.focusedItemClass.replace(/\s/g, '.');
+            this.itemSelector = Fastsearch.selectorFromClass(options.itemClass);
+            this.focusedItemSelector = Fastsearch.selectorFromClass(options.focusedItemClass);
 
             this.events();
+
+        },
+
+        namespaceEvents: function(events) {
+
+            var eventNamespace = this.ens;
+
+            return events.replace(/\w\b/g, function(match) {
+                return match + eventNamespace;
+            });
 
         },
 
@@ -47,11 +53,11 @@
             var self = this,
                 options = this.options;
 
-            this.$input.on('keyup focus click '.replace(/\s/g, this.ens + ' '), function(e) {
+            this.$input.on(this.namespaceEvents('keyup focus click'), function(e) {
 
                 keyMap[e.keyCode] !== 'enter' && self.handleTyping();
 
-            }).on('keydown' + this.ens, function(e) {
+            }).on(this.namespaceEvents('keydown'), function(e) {
 
                 keyMap[e.keyCode] === 'enter' && options.preventSubmit && e.preventDefault();
 
@@ -67,18 +73,18 @@
 
             });
 
-            this.$el.on('click' + this.ens, this.itemSelector, function(e) {
+            this.$el.on(this.namespaceEvents('click'), this.itemSelector, function(e) {
 
                 e.preventDefault();
                 self.handleItemSelect($(this));
 
             });
 
-            !options.isTouch && this.$el.on('mouseleave' + this.ens, this.itemSelector, function(e) {
+            options.mouseEvents && this.$el.on(this.namespaceEvents('mouseleave'), this.itemSelector, function(e) {
 
                 $(this).removeClass(options.focusedItemClass);
 
-            }).on('mouseenter' + this.ens, this.itemSelector, function(e) {
+            }).on(this.namespaceEvents('mouseenter'), this.itemSelector, function(e) {
 
                 self.$resultItems.removeClass(options.focusedItemClass);
                 $(this).addClass(options.focusedItemClass);
@@ -95,31 +101,34 @@
             if (inputValue.length < this.options.minQueryLength) {
 
                 this.hideResults();
-                return;
 
-            }
-
-            if (inputValue === this.query) {
+            } else if (inputValue === this.query) {
 
                 this.showResults();
-                return;
+
+            } else {
+
+                clearTimeout(this.keyupTimeout);
+
+                this.keyupTimeout = setTimeout(function() {
+
+                    self.$el.addClass(self.options.loadingClass);
+
+                    self.query = inputValue;
+
+                    self.getResults(function(data) {
+
+                        self.showResults(self.storeResponse(data).generateResults(data));
+
+                    });
+
+                }, this.options.typeTimeout);
 
             }
-
-            this.$el.addClass(this.options.loadingClass);
-
-            clearTimeout(this.keyupTimeout);
-
-            this.keyupTimeout = setTimeout(function() {
-
-                self.query = inputValue;
-                self.getResults();
-
-            }, this.options.typeTimeout);
 
         },
 
-        getResults: function() {
+        getResults: function(callback) {
 
             var self = this,
                 options = this.options,
@@ -131,14 +140,18 @@
 
             $.get(options.url, formValues, function(data) {
 
-                if (options.parseResponse) {
-                    data = options.parseResponse.call(this, data, this);
-                }
-
-                self.showResults(self.generateResults(data), data);
-                self.hasResults = data.length !== 0;
+                callback(options.parseResponse ? options.parseResponse.call(self, data, self) : data);
 
             });
+
+        },
+
+        storeResponse: function(data) {
+
+            this.responseData = data;
+            this.hasResults = data.length !== 0;
+
+            return this;
 
         },
 
@@ -146,8 +159,6 @@
 
             var $allResults = $('<div>'),
                 options = this.options;
-
-            this.itemModels = [];
 
             if (options.template) {
                 return $(options.template(data, this));
@@ -175,13 +186,15 @@
 
             }
 
-            return $allResults.html();
+            return $allResults.children();
 
         },
 
         generateSimpleResults: function(data, $cont) {
 
             var self = this;
+
+            this.itemModels = data;
 
             $.each(data, function(i, item) {
                 $cont.append(self.generateItem(item));
@@ -195,25 +208,24 @@
                 options = this.options,
                 format = options.responseFormat;
 
+            this.itemModels = [];
+
             $.each(data, function(i, groupData) {
 
                 var $group = $('<div class="' + options.groupClass + '">').appendTo($cont);
 
-                if (groupData[format.groupCaption]) {
-
-                    $group.append(
-                        '<h3 class="' + options.groupTitleClass + '">' + groupData[format.groupCaption] + '</h3>'
-                    );
-
-                }
+                groupData[format.groupCaption] && $group.append(
+                    '<h3 class="' + options.groupTitleClass + '">' + groupData[format.groupCaption] + '</h3>'
+                );
 
                 $.each(groupData.items, function(i, item) {
 
+                    self.itemModels.push(item);
                     $group.append(self.generateItem(item));
 
                 });
 
-                options.onGroupCreate && options.onGroupCreate.call(self, $group, groupData, this);
+                options.onGroupCreate && options.onGroupCreate.call(self, $group, groupData, self);
 
             });
 
@@ -227,8 +239,6 @@
                 html = item[format.html] || item[format.label],
                 $tag = $('<' + (url ? 'a' : 'span') + '>').html(html).addClass(options.itemClass);
 
-            this.itemModels.push(item);
-
             url && $tag.attr('href', url);
 
             options.onItemCreate && options.onItemCreate.call(this, $tag, item, this);
@@ -237,7 +247,7 @@
 
         },
 
-        showResults: function($content, data) {
+        showResults: function($content) {
 
             if (!$content && this.resultsOpened) {
                 return;
@@ -251,7 +261,7 @@
 
                 this.$resultsCont.html($content);
                 this.$resultItems = this.$resultsCont.find(this.itemSelector);
-                this.options.onResultsCreate && this.options.onResultsCreate.call(this, this.$resultsCont, data, this);
+                this.options.onResultsCreate && this.options.onResultsCreate.call(this, this.$resultsCont, this.responseData, this);
 
             }
 
@@ -266,7 +276,7 @@
 
         },
 
-        documentCancelEvents: function(setup) {
+        documentCancelEvents: function(setup, onCancel) {
 
             var self = this;
 
@@ -278,12 +288,11 @@
 
             } else if (setup === 'on' && !this.closeEventsSetuped) {
 
-                $document.on('click' + this.ens + ' keyup' + this.ens, function(e) {
+                $document.on(this.namespaceEvents('click keyup'), function(e) {
 
-                    if (keyMap[e.keyCode] === 'escape' || (!$(e.target).is(self.$el) && !$.contains(self.$el.get(0), e.target))) {
+                    if (keyMap[e.keyCode] === 'escape' || (!$(e.target).is(self.$el) && !$.contains(self.$el.get(0), e.target) && $.contains(document.documentElement, e.target))) {
 
-                        self.hideResults();
-                        return;
+                        onCancel ? onCancel.call(self) : self.hideResults();
 
                     }
 
@@ -345,35 +354,13 @@
         handleItemSelect: function($item) {
 
             var selectOption = this.options.onItemSelect,
-                model = this.itemModels.length ? this.itemModels[this.$resultItems.index($item)] : {},
-                format = this.options.responseFormat;
+                model = this.itemModels.length ? this.itemModels[this.$resultItems.index($item)] : {};
 
             this.$input.trigger('itemSelected');
 
             if (selectOption === 'fillInput') {
 
-                this.query = model[format.label];
-                this.$input.val(model[format.label]).trigger('change');
-
-                if (this.options.fillInputId && model.id) {
-
-                    if (!this.$inputId) {
-
-                        var inputIdName = this.options.inputIdName || this.$input.attr('name') + '_id';
-
-                        this.$inputId = this.$el.find('input[name="' + inputIdName + '"]');
-
-                        if (!this.$inputId.length) {
-                            this.$inputId = $('<input type="hidden" name="' + inputIdName + '" />').appendTo(this.$el);
-                        }
-
-                    }
-
-                    this.$inputId.val(model.id).trigger('change');
-
-                }
-
-                this.hideResults();
+                this.fillInput(model);
 
             } else if (selectOption === 'follow') {
 
@@ -384,6 +371,36 @@
                 selectOption.call(this, $item, model, this);
 
             }
+
+        },
+
+        fillInput: function(model) {
+
+            var options = this.options,
+                format = options.responseFormat;
+
+            this.query = model[format.label];
+            this.$input.val(model[format.label]).trigger('change');
+
+            if (options.fillInputId && model.id) {
+
+                if (!this.$inputId) {
+
+                    var inputIdName = options.inputIdName || this.$input.attr('name') + '_id';
+
+                    this.$inputId = this.$el.find('input[name="' + inputIdName + '"]');
+
+                    if (!this.$inputId.length) {
+                        this.$inputId = $('<input type="hidden" name="' + inputIdName + '" />').appendTo(this.$el);
+                    }
+
+                }
+
+                this.$inputId.val(model.id).trigger('change');
+
+            }
+
+            this.hideResults();
 
         },
 
@@ -434,6 +451,26 @@
 
     });
 
+    $.extend(Fastsearch, {
+
+        pickTo: function(dest, src, keys) {
+
+            $.each(keys, function(i, key) {
+                dest[key] = (src && src[key]) || dest[key];
+            });
+
+            return dest;
+
+        },
+
+        selectorFromClass: function(classes) {
+
+            return '.' + classes.replace(/\s/g, '.');
+
+        }
+
+    });
+
     Fastsearch.defaults = {
         wrapSelector: 'form', // fastsearch container defaults to closest form. Provide selector for something other
         url: null, // plugin will get data from data-url propery, url option or container action attribute
@@ -453,8 +490,7 @@
         minQueryLength: 2, // minimal number of characters needed for plugin to send request to server
 
         template: null, // provide your template function if you need one - function(data, fastsearchApi)
-
-        isTouch: 'ontouchstart' in window || 'onmsgesturechange' in window, // detect if client is touch enabled so plugin can decide if mouse specific events should be set.
+        mouseEvents: !('ontouchstart' in window || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0), // detect if client is touch enabled so plugin can decide if mouse specific events should be set.
 
         responseFormat: { // Adjust where plugin looks for data in your JSON server response
             url: 'url',

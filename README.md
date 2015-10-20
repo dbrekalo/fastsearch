@@ -35,8 +35,7 @@ $.fastsearch.defaults = {
     minQueryLength: 2, // minimal number of characters needed for plugin to send request to server
 
     template: null, // provide your template function if you need one - function(data, fastsearchApi)
-
-    isTouch: 'ontouchstart' in window || 'onmsgesturechange' in window, // detect if client is touch enabled so plugin can decide if mouse specific events should be set.
+    mouseEvents: !('ontouchstart' in window || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0), // detect if client is touch enabled so plugin can decide if mouse specific events should be set.
 
     responseFormat: { // Adjust where plugin looks for data in your JSON server response
         url: 'url',
@@ -59,5 +58,5 @@ $.fastsearch.defaults = {
     onGroupCreate: null, // adjust group element when created - function($group, groupModel, fastsearchApi)
     onItemCreate: null // adjust item element when created - function($item, model, fastsearchApi)
 };
-	```
+```
 
