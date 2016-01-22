@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+    <head>
+
+        {{ include('snippets/pageMeta.html', {
+            "title": "Fastseach",
+            "description": "Fastsearch is lightweight and responsive autosuggest and quicksearch library"
+        }) }}
+
+        {{ include('snippets/attireAssets.html') }}
+
+        <link rel="stylesheet" href="dist/fastsearch.min.css">
+        <script src="dist/fastsearch.min.js"></script>
+
+    </head>
+<body>
+
+    {{ include('sections/about.html') }}
+    {{ include('sections/examples.html') }}
+    {{ include('sections/installation.html') }}
+
+    {{ include('snippets/githubRibbon.html') }}
+    {{ include('snippets/attireFooter.html') }}
+
+</body>
+
+</html>

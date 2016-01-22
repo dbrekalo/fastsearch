@@ -514,7 +514,7 @@
         onItemCreate: null // adjust item element when created - function($item, model, fastsearchApi)
     };
 
-    $.fastsearch = Fastsearch;
+    $.fastsearch = $.Fastsearch = Fastsearch;
 
     $.fn.fastsearch = function(options) {
         return this.each(function() {
@@ -524,4 +524,4 @@
         });
     };
 
-})(window.jQuery || window.Zepto, window, document);
+})(window.jQuery || window.Zepto || window.simpleQuery, window, document);

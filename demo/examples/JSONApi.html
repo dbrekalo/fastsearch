@@ -1,0 +1,34 @@
+<h3 class="attireTitleType3">Connecting to JSON api</h3>
+
+<style>
+
+	.searchControl {
+		display: block; position: relative;
+		border: 3px solid #e6e6e6; background-color: #fff; box-shadow: 0 5px 5px RGBA(0, 0, 0, 0.04);
+	}
+
+	.searchControl > input {
+		font-size: 1.6em; display: block; width: 100%; padding: 1em;
+		border: 0; background: #fff;
+
+	}
+
+	.searchControl > button {
+		position: absolute; right: 0.8em; top: 0; bottom: 0; width: 3.5em;
+		background: transparent; border: 0; opacity: 0.6;
+	}
+
+	.searchControl > button:hover {
+		opacity: 1;
+	}
+
+	.searchControl > button > img {
+		display: block; width: 100%;
+	}
+
+</style>
+
+<form class="searchControl" action="">
+	<input name="query" type="text" />
+	<button type="submit"><img src="demo/images/searchIcon.png" alt="Search"></button>
+</form>
