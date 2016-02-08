@@ -1,6 +1,16 @@
-;(function($, window, document) {
+(function(factory) {
 
-    var $document = $(document),
+    if (typeof define === 'function' && define.amd) {
+        define(['jquery'], factory);
+    } else if (typeof module === 'object' && module.exports) {
+        module.exports = factory(require('jquery'));
+    } else {
+        factory(jQuery);
+    }
+
+}(function($) {
+
+    var $document = $(window.document),
         instanceNum = 0,
         keyMap = {
             13: 'enter',
@@ -524,4 +534,6 @@
         });
     };
 
-})(window.jQuery || window.Zepto, window, document);
+    return $;
+
+}));
