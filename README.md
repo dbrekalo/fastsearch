@@ -24,6 +24,7 @@ $.fastsearch.defaults = {
 
     resultsContClass: 'fs_results', // html classes
     resultsOpenedClass: 'fsr_opened',
+    resultsFlippedClass: 'fsr_flipped',
     groupClass: 'fs_group',
     itemClass: 'fs_result_item',
     groupTitleClass: 'fs_group_title',
@@ -36,6 +37,8 @@ $.fastsearch.defaults = {
 
     template: null, // provide your template function if you need one - function(data, fastsearchApi)
     mouseEvents: !('ontouchstart' in window || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0), // detect if client is touch enabled so plugin can decide if mouse specific events should be set.
+    focusFirstItem: false,
+    flipOnBottom: false,
 
     responseFormat: { // Adjust where plugin looks for data in your JSON server response
         url: 'url',
