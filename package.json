@@ -1,6 +1,6 @@
 {
   "name": "fastsearch",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "main": "src/fastsearch.js",
   "description": "Lightweight fast search / autocomplete plugin based on jQuery",
   "license": "MIT",
